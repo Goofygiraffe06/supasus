@@ -78,12 +78,24 @@ class SupabaseScanner:
         except requests.exceptions.RequestException as e:
             self.log(f"Site inaccessible: {e}", "ERROR")
             return False
+    
+    def sanitize_headers(self, headers):
+        """Ensure all headers are ASCII-compatible to prevent encoding errors."""
+        sanitized_headers = {}
+        for key, value in headers.items():
+            try:
+                sanitized_headers[key] = value.encode("latin-1").decode("latin-1")  # Ensure compatibility
+            except UnicodeEncodeError:
+                sanitized_headers[key] = value.encode("ascii", "ignore").decode()  # Remove problematic characters
+        return sanitized_headers
 
     def fetch_swagger(self):
         """Fetch Swagger spec from the root endpoint."""
         self.log("Fetching Swagger specification")
         try:
+            self.headers = self.sanitize_headers(self.headers)  # Sanitize headers before request
             response = requests.get(self.base_url, headers=self.headers)
+            response.encoding = 'utf-8'
             if response.status_code == 200:
                 self.log("Swagger spec retrieved successfully")
                 self.swagger_spec = response.json()
